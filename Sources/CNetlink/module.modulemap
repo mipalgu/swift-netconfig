@@ -1,0 +1,4 @@
+module CNetlink [system] {
+	header "netlink_bridging.h"
+	export *
+}
