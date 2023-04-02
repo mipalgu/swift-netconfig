@@ -1,0 +1,28 @@
+{
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "sourceLanguages": [
+                "swift"
+            ],
+            "name": "Debug linkstats",
+            "program": "${workspaceFolder:swift-netconfig}/.build/debug/linkstats",
+            "args": [],
+            "cwd": "${workspaceFolder:swift-netconfig}",
+            "preLaunchTask": "swift: Build Debug linkstats"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "sourceLanguages": [
+                "swift"
+            ],
+            "name": "Release linkstats",
+            "program": "${workspaceFolder:swift-netconfig}/.build/release/linkstats",
+            "args": [],
+            "cwd": "${workspaceFolder:swift-netconfig}",
+            "preLaunchTask": "swift: Build Release linkstats"
+        }
+    ]
+}
