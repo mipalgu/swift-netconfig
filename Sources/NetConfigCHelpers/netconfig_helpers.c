@@ -1,4 +1,5 @@
 #include <stddef.h>
+#include <string.h>
 #include "netconfig_helpers.h"
 
 #ifdef __linux__
@@ -30,7 +31,7 @@ bool nlmsg_ok(const struct nlmsghdr *nlh, intptr_t len)
 ///
 /// - Parameter length: The length of the data.
 /// - Note: this wraps the `NLMSG_LENGTH` macro.
-int nlmsg_length(intptr_t length)
+uint32_t nlmsg_length(intptr_t length)
 {
     return NLMSG_LENGTH(length);
 }
@@ -90,6 +91,44 @@ int rta_length(intptr_t size)
 void *rta_data(const struct rtattr *rta)
 {
     return rta ? RTA_DATA(rta) : NULL;
+}
+
+/// Parse the rtattr responses into a table indexed by type.
+///
+/// - Parameters:
+///   - tb: The table to parse the `rta` list into.
+///   - count: The number of entries the table can hold.
+///   - rta: The list of attributes.
+///   - len: Message length without the header.
+void parseRtattr(struct rtattr *tb[], size_t count, struct rtattr *rta, size_t len)
+{
+    memset(tb, 0, sizeof(struct rtattr *) * count);
+
+    while (RTA_OK(rta, len))         // while not end of the message
+    {
+        if (rta->rta_type < count)
+        {
+            tb[rta->rta_type] = rta; // read attribute
+        }
+        rta = RTA_NEXT(rta,len);
+    }
+}
+
+/// Receive a netlink response message.
+/// - Parameters:
+///   - fd: The socket to receive the message on.
+///   - msg: The message to receive.
+int recv_netlink_msg(int fd, struct netlink_receive_message *msg)
+{
+    msg->iov.iov_base = msg->buffer;
+    msg->iov.iov_len = sizeof(msg->buffer);
+
+    msg->hdr.msg_name = &msg->local;
+    msg->hdr.msg_namelen = sizeof(msg->local);
+    msg->hdr.msg_iov = &msg->iov;
+    msg->hdr.msg_iovlen = 1;
+
+    return recvmsg(fd, &msg->hdr, 0);
 }
 
 #endif // __linux__

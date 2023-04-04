@@ -12,6 +12,17 @@
 
 #ifdef __linux__
 
+/// Structure containing an `nlmsghdr`
+/// followed by a `rtgenmsg`.
+///
+///
+struct rtm_genlink_request
+{
+    /// The `nlmsghdr` header.
+    struct nlmsghdr nlh;
+    /// The `rtgenmsg` header.
+    struct rtgenmsg gen;
+};
 
 /// The maximum value for `ifla` attributes.
 extern intptr_t ifla_max;
@@ -23,12 +34,38 @@ extern intptr_t ifla_max;
 /// - Note: this wraps the `IFLA_RTA` macro.
 struct rtattr *ifla_rta(const struct ifinfomsg *ifm);
 
-/// A netlink `rtgen` message.
+/// A netlink `rtgen` request message.
 struct netlink_rtgen_message
 {
     struct nlmsghdr nlh;
     struct rtgenmsg gen;
 };
+
+/// receive message infrastructure and buffer.
+struct netlink_receive_message
+{
+    /// The local netlink socket address.
+    struct sockaddr_nl local;
+
+    /// The I/O vector.
+    struct iovec iov;
+
+    /// The message header.
+    struct msghdr hdr;
+
+    /// The receive buffer.
+    union {
+        struct nlmsghdr nlh;
+        char buf[8192];
+        char buffer[1];
+    };
+};
+
+/// Receive a netlink response message.
+/// - Parameters:
+///   - fd: The socket to receive the message on.
+///   - msg: The message to receive.
+int recv_netlink_msg(int fd, struct netlink_receive_message *msg);
 
 /// Return `true` if the given `nlmsghdr` pointer is okay.
 ///
@@ -41,7 +78,7 @@ bool nlmsg_ok(const struct nlmsghdr *nlh, intptr_t len);
 ///
 /// - Parameter length: The length of the data.
 /// - Note: this wraps the `NLMSG_LENGTH` macro.
-int nlmsg_length(intptr_t length);
+uint32_t nlmsg_length(intptr_t length);
 
 /// Return the next `nlmsghdr` pointer.
 ///
@@ -81,6 +118,15 @@ void *rta_data(const struct rtattr *rta);
 /// - Parameter attrlen: The length of the `rtattr` pointer.
 /// - Note: this wraps the `RTA_NEXT` macro.
 struct rtattr *rta_next(const struct rtattr *rta, intptr_t *attrlen);
+
+/// Parse the rtattr responses into a table indexed by type.
+///
+/// - Parameters:
+///   - tb: The table to parse the `rta` list into.
+///   - count: The number of entries the table can hold.
+///   - rta: The list of attributes.
+///   - len: Message length without the header.
+void parseRtattr(struct rtattr *tb[], size_t count, struct rtattr *rta, size_t len);
 
 #endif // __linux__
 #endif // NETCONFIG_HELPERS_H
