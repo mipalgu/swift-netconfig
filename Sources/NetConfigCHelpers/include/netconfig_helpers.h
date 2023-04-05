@@ -65,7 +65,19 @@ struct netlink_receive_message
 /// - Parameters:
 ///   - fd: The socket to receive the message on.
 ///   - msg: The message to receive.
-int recv_netlink_msg(int fd, struct netlink_receive_message *msg);
+ssize_t recv_netlink_msg(int fd, struct netlink_receive_message *msg);
+
+/// Parse the received message.
+///
+/// This function calls the corresponding callbacks for
+/// `RT_NEWLINK` and related `ifinfomsg` messages.
+/// - Parameters:
+///   - msg: The received message.
+///   - msg_len: The length as reported by `recv_netlink_msg()`
+///   - user_data: a pointer passed to the callback.
+///   - on_if_info: callback for `RTM_NEWLINK`, `RTM_DELLINK`, and `RTM_GETLINK` messages.
+/// - Returns: `true` on success or `false` on error.
+bool parse_netlink_msg(struct netlink_receive_message *msg, ssize_t msg_len, void *user_data, void (*on_if_info)(struct ifinfomsg *, struct rtnl_link_stats *, void *));
 
 /// Return `true` if the given `nlmsghdr` pointer is okay.
 ///

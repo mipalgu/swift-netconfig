@@ -1,5 +1,6 @@
 #include <stddef.h>
 #include <string.h>
+#include <stdio.h>
 #include "netconfig_helpers.h"
 
 #ifdef __linux__
@@ -118,7 +119,7 @@ void parseRtattr(struct rtattr *tb[], size_t count, struct rtattr *rta, size_t l
 /// - Parameters:
 ///   - fd: The socket to receive the message on.
 ///   - msg: The message to receive.
-int recv_netlink_msg(int fd, struct netlink_receive_message *msg)
+ssize_t recv_netlink_msg(int fd, struct netlink_receive_message *msg)
 {
     msg->iov.iov_base = msg->buffer;
     msg->iov.iov_len = sizeof(msg->buffer);
@@ -129,6 +130,49 @@ int recv_netlink_msg(int fd, struct netlink_receive_message *msg)
     msg->hdr.msg_iovlen = 1;
 
     return recvmsg(fd, &msg->hdr, 0);
+}
+
+/// Parse the received message.
+///
+/// This function calls the corresponding callbacks for
+/// `RT_NEWLINK` and related `ifinfomsg` messages.
+/// - Parameters:
+///   - msg: The received message.
+///   - msg_len: The length as reported by `recv_netlink_msg()`
+///   - user_data: a pointer passed to the callback.
+///   - on_if_info: callback for `RTM_NEWLINK`, `RTM_DELLINK`, and `RTM_GETLINK` messages.
+/// - Returns: `true` on success or `false` on error.
+bool parse_netlink_msg(struct netlink_receive_message *msg, ssize_t msg_len, void *user_data, void (*on_if_info)(struct ifinfomsg *, struct rtnl_link_stats *, void *))
+{
+    struct nlmsghdr *nlh;
+
+    for (nlh = (struct nlmsghdr *)msg->buffer; NLMSG_OK(nlh, msg_len); nlh = NLMSG_NEXT(nlh, msg->iov.iov_len))
+    {
+        switch (nlh->nlmsg_type)
+        {
+            case NLMSG_DONE: return true;
+            case NLMSG_ERROR: return false;
+
+            case RTM_NEWLINK:
+            case RTM_DELLINK:
+            case RTM_GETLINK:
+            {
+                struct ifinfomsg *ifm = (struct ifinfomsg *)NLMSG_DATA(nlh);
+                struct rtattr *rta[IFLA_MAX + 1];
+                int len = nlh->nlmsg_len - NLMSG_LENGTH(sizeof(*ifm));
+                parseRtattr(rta, IFLA_MAX, IFLA_RTA(ifm), len);
+
+                if (rta[IFLA_STATS])
+                    on_if_info(ifm, (struct rtnl_link_stats *)RTA_DATA(rta[IFLA_STATS]), user_data);
+            }
+            break;
+
+            default:
+                fprintf(stderr, "Skipped message type %d\n", (int)nlh->nlmsg_type);
+        }
+    }
+
+    return true;
 }
 
 #endif // __linux__

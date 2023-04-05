@@ -81,51 +81,23 @@ withUnsafeMutablePointer(to: &message.rawValue) { msgptr in
         exit(1)
     }
 
-    withUnsafeMutablePointer(to: &msgptr.pointee.nlh) {
-        var h = $0
-        var msg_len_remaining = Int(messageLength)
-
-        if !nlmsg_ok(h, msg_len_remaining) {
-            print("Error: Invalid netlink message")
+    print("Parsing message \(String(describing: msgptr)) of length: \(messageLength)")
+    guard parse_netlink_msg(msgptr, messageLength, UnsafeMutableRawPointer(bitPattern: Int(ifIndex)), { ifi, stats, ifptr in
+        guard let ifi, let stats else {
+            print("Got \(String(describing: ifi)), \(String(describing: stats))")
+            return
         }
-        while nlmsg_ok(h, msg_len_remaining) {
-            if h.pointee.nlmsg_type == NLMSG_DONE {
-                break
-            }
-
-            if h.pointee.nlmsg_type == UInt16(RTM_NEWLINK) {
-                let ifi = nlmsg_data(h).assumingMemoryBound(to: ifinfomsg.self)
-                var tb = [UnsafeMutablePointer<rtattr>?](repeating: nil, count: ifla_max)
-                let len = Int(h.pointee.nlmsg_len) - Int(nlmsg_length(MemoryLayout<ifinfomsg>.size))
-
-                parseRtattr(&tb, ifla_max, ifla_rta(ifi), len)
-
-                if Int(ifi.pointee.ifi_index) == ifIndex, let stats = tb[IFLA_STATS] {
-                    let ifName = String(cString: if_indextoname(UInt32(ifIndex), &msgptr.pointee.buffer))
-                    stats.withMemoryRebound(to: rtnl_link_stats.self, capacity: 1) {
-                        print("Interface: \(ifName)")
-                        printInterfaceStats(stats: $0)
-                        print("\n")
-                    }
-                    break
-                } else {
-                    if Int(ifi.pointee.ifi_index) != ifIndex {
-                        print("Unexpected interface index \(ifi.pointee.ifi_index) (expected \(ifIndex))")
-                    } else if tb[IFLA_STATS] == nil {
-                        print("No stats for interface \(interfaceName)")
-                    }
-                }
-            } else {
-                print("Unexpected message type \(h.pointee.nlmsg_type) (expected \(RTM_NEWLINK))")
-            }
-
-            h = nlmsg_next(h, &msg_len_remaining)
+        let ifIndex = Int(bitPattern: ifptr)
+        if ifi.pointee.ifi_index != ifIndex {
+            print("Unexpected interface index: \(ifi.pointee.ifi_index) (expected \(ifIndex))")
         }
-
-        if h.pointee.nlmsg_type != NLMSG_DONE {
-            perror("Expected \(NLMSG_DONE) but got \(h.pointee.nlmsg_type)")
-        }
+        var buf = [CChar](repeating: 0, count: Int(IFNAMSIZ))
+        print("Interface: \(String(cString: if_indextoname(UInt32(ifi.pointee.ifi_index), &buf)))")
+        printInterfaceStats(stats: stats)
+    }) else {
+        perror("Failed to parse netlink message")
+        close(fd)
+        exit(1)
     }
 }
-
 close(fd)
