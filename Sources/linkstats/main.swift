@@ -20,6 +20,10 @@ guard netconfig.requestStatistics() else {
     exit(EXIT_FAILURE)
 }
 
+if !netconfig.hasDataAvailable {
+    print("Waiting for data.")
+}
+
 guard netconfig.forEachStatistics({
     print("Interface: \($0)")
     print($1.description)

@@ -25,6 +25,12 @@ public class NetConfig {
     /// Return whether the connection is open.
     public var isOpen = false
 
+    /// Return whether data are available for reading .
+    @inlinable public var hasDataAvailable: Bool {
+        var fds = pollfd(fd: fd, events: CShort(POLLIN), revents: 0)
+        return poll(&fds, 1, 0) >= 0 && fds.revents == fds.events
+    }
+
     /// Designated initialiser.
     ///
     /// - Parameter interface: The interface to look at.
