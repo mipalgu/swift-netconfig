@@ -5,6 +5,12 @@ import Glibc
 #elseif os(macOS)
 import Darwin
 #endif
+
+/// Net configuration interface.
+///
+/// This class provides an interface to the netlink
+/// socket used to query network interface configuration
+/// and statistics.
 public class NetConfig {
     /// The underlying netlink message used for communication.
     @usableFromInline var message = NetlinkMessage()
