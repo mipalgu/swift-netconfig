@@ -54,19 +54,13 @@ guard fd >= 0 else {
 }
 
 var message = NetlinkMessage()
-let bindResult = withUnsafeBytes(of: &message.rawValue.local) {
-    bind(fd, $0.assumingMemoryBound(to: sockaddr.self).baseAddress, socklen_t(MemoryLayout<sockaddr_nl>.size))
-}
-guard bindResult >= 0 else {
+guard bind_netlink_msg(fd, &message.rawValue) else {
     perror("Failed to bind netlink socket")
     close(fd)
     exit(1)
 }
 
-var request = GetLinkRequest()
-let len = Int(request.length)
-let sendResult = send(fd, &request.rawValue, len, 0)
-
+let sendResult = send_netlink_msg(fd, RTM_GETLINK, NLM_F_REQUEST | NLM_F_DUMP)
 guard sendResult >= 0 else {
     perror("Failed to send netlink message")
     close(fd)
@@ -81,15 +75,15 @@ withUnsafeMutablePointer(to: &message.rawValue) { msgptr in
         exit(1)
     }
 
-    print("Parsing message \(String(describing: msgptr)) of length: \(messageLength)")
+//    print("Parsing message \(String(describing: msgptr)) of length: \(messageLength)")
     guard parse_netlink_msg(msgptr, messageLength, UnsafeMutableRawPointer(bitPattern: Int(ifIndex)), { ifi, stats, ifptr in
         guard let ifi, let stats else {
             print("Got \(String(describing: ifi)), \(String(describing: stats))")
             return
         }
         let ifIndex = Int(bitPattern: ifptr)
-        if ifi.pointee.ifi_index != ifIndex {
-            print("Unexpected interface index: \(ifi.pointee.ifi_index) (expected \(ifIndex))")
+        guard ifi.pointee.ifi_index == ifIndex else {
+            return
         }
         var buf = [CChar](repeating: 0, count: Int(IFNAMSIZ))
         print("Interface: \(String(cString: if_indextoname(UInt32(ifi.pointee.ifi_index), &buf)))")

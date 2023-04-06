@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
 #include "netconfig_helpers.h"
 
 #ifdef __linux__
@@ -115,14 +116,46 @@ void parseRtattr(struct rtattr *tb[], size_t count, struct rtattr *rta, size_t l
     }
 }
 
+/// Bind a netlink message.
+/// - Parameters:
+///   - fd: The socket to bind.
+///   - msg: The message containing the bind address.
+bool bind_netlink_msg(int fd, struct netlink_receive_message *msg)
+{
+    memset(&msg->local, 0, sizeof(msg->local));
+
+    msg->local.nl_family = AF_NETLINK;
+    msg->local.nl_pid = getpid();
+
+    return bind(fd, (struct sockaddr *)&msg->local, sizeof(msg->local)) >= 0;
+}
+
+/// Send a netlink request message.
+/// - Parameters:
+///   - fd: The socket to send the message to.
+///   - type: The type of message to send, e.g. `RTM_GETLINK`
+///   - flags: The flags for the request, e.g. `NLM_F_REQUEST | NLM_F_DUMP`
+ssize_t send_netlink_msg(int fd, intptr_t type, int32_t flags)
+{
+    struct netlink_rtgen_message req;
+
+    memset(&req, 0, sizeof(req));
+    req.nlh.nlmsg_len = NLMSG_LENGTH(sizeof(struct rtgenmsg));
+    req.nlh.nlmsg_type = RTM_GETLINK;
+    req.nlh.nlmsg_flags = NLM_F_REQUEST | NLM_F_DUMP;
+    req.gen.rtgen_family = AF_PACKET;
+
+    return send(fd, &req, req.nlh.nlmsg_len, 0);
+}
+
 /// Receive a netlink response message.
 /// - Parameters:
 ///   - fd: The socket to receive the message on.
 ///   - msg: The message to receive.
 ssize_t recv_netlink_msg(int fd, struct netlink_receive_message *msg)
 {
-    msg->iov.iov_base = msg->buffer;
-    msg->iov.iov_len = sizeof(msg->buffer);
+    msg->iov.iov_base = msg->buf;
+    msg->iov.iov_len = sizeof(msg->buf);
 
     msg->hdr.msg_name = &msg->local;
     msg->hdr.msg_namelen = sizeof(msg->local);

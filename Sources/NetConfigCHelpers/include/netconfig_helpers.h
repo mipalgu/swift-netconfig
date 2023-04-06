@@ -61,6 +61,20 @@ struct netlink_receive_message
     };
 };
 
+
+/// Bind a netlink message.
+/// - Parameters:
+///   - fd: The socket to bind.
+///   - msg: The message containing the local bind address.
+bool bind_netlink_msg(int fd, struct netlink_receive_message *msg);
+
+/// Send a netlink request message.
+/// - Parameters:
+///   - fd: The socket to send the message to.
+///   - type: The type of message to send, e.g. `RTM_GETLINK`
+///   - flags: The flags for the request, e.g. `NLM_F_REQUEST | NLM_F_DUMP`
+ssize_t send_netlink_msg(int fd, intptr_t type, int32_t flags);
+
 /// Receive a netlink response message.
 /// - Parameters:
 ///   - fd: The socket to receive the message on.
