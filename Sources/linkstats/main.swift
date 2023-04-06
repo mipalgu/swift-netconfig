@@ -7,30 +7,6 @@ import Glibc
 import Darwin
 #endif
 
-func printInterfaceStats(stats: UnsafeMutablePointer<rtnl_link_stats>) {
-    print("rx_packets: \(stats.pointee.rx_packets)")
-    print("tx_packets: \(stats.pointee.tx_packets)")
-    print("rx_bytes: \(stats.pointee.rx_bytes)")
-    print("tx_bytes: \(stats.pointee.tx_bytes)")
-    print("rx_errors: \(stats.pointee.rx_errors)")
-    print("tx_errors: \(stats.pointee.tx_errors)")
-    print("rx_dropped: \(stats.pointee.rx_dropped)")
-    print("tx_dropped: \(stats.pointee.tx_dropped)")
-    print("multicast: \(stats.pointee.multicast)")
-    print("collisions: \(stats.pointee.collisions)")
-    print("rx_length_errors: \(stats.pointee.rx_length_errors)")
-    print("rx_over_errors: \(stats.pointee.rx_over_errors)")
-    print("rx_crc_errors: \(stats.pointee.rx_crc_errors)")
-    print("rx_frame_errors: \(stats.pointee.rx_frame_errors)")
-    print("rx_fifo_errors: \(stats.pointee.rx_fifo_errors)")
-    print("rx_missed_errors: \(stats.pointee.rx_missed_errors)")
-    print("tx_aborted_errors: \(stats.pointee.tx_aborted_errors)")
-    print("tx_carrier_errors: \(stats.pointee.tx_carrier_errors)")
-    print("tx_fifo_errors: \(stats.pointee.tx_fifo_errors)")
-    print("tx_heartbeat_errors: \(stats.pointee.tx_heartbeat_errors)")
-    print("tx_window_errors: \(stats.pointee.tx_window_errors)")
-}
-
 let arguments = CommandLine.arguments
 
 guard arguments.count == 2 else {
@@ -77,17 +53,13 @@ withUnsafeMutablePointer(to: &message.rawValue) { msgptr in
 
 //    print("Parsing message \(String(describing: msgptr)) of length: \(messageLength)")
     guard parse_netlink_msg(msgptr, messageLength, UnsafeMutableRawPointer(bitPattern: Int(ifIndex)), { ifi, stats, ifptr in
-        guard let ifi, let stats else {
-            print("Got \(String(describing: ifi)), \(String(describing: stats))")
-            return
-        }
         let ifIndex = Int(bitPattern: ifptr)
-        guard ifi.pointee.ifi_index == ifIndex else {
-            return
-        }
+        guard let ifi, ifi.pointee.ifi_index == ifIndex,
+              let statistics = stats.map(LinkStatistics.init) else { return }
         var buf = [CChar](repeating: 0, count: Int(IFNAMSIZ))
         print("Interface: \(String(cString: if_indextoname(UInt32(ifi.pointee.ifi_index), &buf)))")
-        printInterfaceStats(stats: stats)
+//        printInterfaceStats(stats: stats)
+        print(statistics.description)
     }) else {
         perror("Failed to parse netlink message")
         close(fd)

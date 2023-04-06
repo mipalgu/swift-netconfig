@@ -9,10 +9,10 @@ import Darwin
 /// Swift wrapper around a pointer to a `rtnl_link_stats`.
 public struct LinkStatistics {
     /// Pointer to the underlying `rtnl_link_stats` struct.
-    public let linkStats: UnsafePointer<rtnl_link_stats>
+    public let linkStats: UnsafeMutablePointer<rtnl_link_stats>
 
     /// Creates a new `LinkStatistics` from a pointer to a `rtnl_link_stats`.
-    public init(_ ptr: UnsafePointer<rtnl_link_stats>) {
+    public init(_ ptr: UnsafeMutablePointer<rtnl_link_stats>) {
         self.linkStats = ptr
     }
 }
