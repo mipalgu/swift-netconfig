@@ -120,3 +120,18 @@ extension LinkStatistics: CustomDebugStringConvertible {
         """
     }
 }
+
+// MARK: - Equatable
+extension LinkStatistics: Equatable {
+    /// Returns a Boolean value indicating whether two instances
+    /// reference the same underlying struct.
+    @inlinable public static func === (lhs: LinkStatistics, rhs: LinkStatistics) -> Bool {
+        lhs.linkStats == rhs.linkStats
+    }
+
+    /// Returns a Boolean value indicating whether two instances
+    /// are equal.
+    @inlinable public static func == (lhs: LinkStatistics, rhs: LinkStatistics) -> Bool {
+        memcmp(lhs.linkStats, rhs.linkStats, MemoryLayout<rtnl_link_stats>.size) == 0
+    }
+}
